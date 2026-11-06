@@ -47,6 +47,41 @@ function groupScanFindings(findings: SecurityScanReport['findings']) {
   return [...groups.values()].sort((a, b) => rank[a.severity] - rank[b.severity]);
 }
 
+/** Grouped findings list shown when the security gate blocked an install. */
+function BlockedScanSection({ labels, scan }: { labels: string[]; scan: SecurityScanReport }) {
+  return (
+    <div className="grid gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3" role="alert">
+      <div className="flex items-center gap-2">
+        <ShieldAlert className="size-4 text-destructive" aria-hidden />
+        <span className="text-sm font-medium">
+          Security scan flagged {labels.length > 0 ? labels.join(', ') : 'this skill'}
+        </span>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        An automated check found patterns that are also used by harmful skills. The same patterns show up in
+        legitimate files, so treat this as a prompt to review rather than a verdict: check the flagged files
+        in the repo and install only if you trust the source. The override is recorded on the scan record.
+      </p>
+      <ul className="grid gap-2">
+        {groupScanFindings(scan.findings).map((group) => (
+          <li className="flex items-start gap-2 text-xs" key={`${group.severity}-${group.title}`}>
+            <Badge variant={group.severity === 'high' ? 'destructive' : 'warning'}>{group.severity}</Badge>
+            <span className="min-w-0">
+              <span className="font-medium">{group.title}</span>
+              <span className="block text-muted-foreground">{group.detail}</span>
+              {group.files.length > 0 ? (
+                <span className="block font-mono text-[11px] text-muted-foreground">
+                  {group.files.join(', ')}
+                </span>
+              ) : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 interface InstallSkillDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -261,37 +296,7 @@ export function InstallSkillDialog({
             />
             <span>Replace if the skill already exists in the hub</span>
           </label>
-          {blockedScan ? (
-            <div className="grid gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3" role="alert">
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="size-4 text-destructive" aria-hidden />
-                <span className="text-sm font-medium">
-                  Security scan flagged {blockedLabels.length > 0 ? blockedLabels.join(', ') : 'this skill'}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                An automated check found patterns that are also used by harmful skills. The same patterns show up in
-                legitimate files, so treat this as a prompt to review rather than a verdict: check the flagged files
-                in the repo and install only if you trust the source. The override is recorded on the scan record.
-              </p>
-              <ul className="grid gap-2">
-                {groupScanFindings(blockedScan.findings).map((group) => (
-                  <li className="flex items-start gap-2 text-xs" key={`${group.severity}-${group.title}`}>
-                    <Badge variant={group.severity === 'high' ? 'destructive' : 'warning'}>{group.severity}</Badge>
-                    <span className="min-w-0">
-                      <span className="font-medium">{group.title}</span>
-                      <span className="block text-muted-foreground">{group.detail}</span>
-                      {group.files.length > 0 ? (
-                        <span className="block font-mono text-[11px] text-muted-foreground">
-                          {group.files.join(', ')}
-                        </span>
-                      ) : null}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+          {blockedScan ? <BlockedScanSection labels={blockedLabels} scan={blockedScan} /> : null}
         </DialogBody>
         <DialogFooter>
           <Button loading={isMigrating} onClick={onMigrate} variant="secondary">
