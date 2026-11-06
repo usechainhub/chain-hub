@@ -161,6 +161,56 @@ describe("getExplicitDescription / ensureExplicitDescription", () => {
     const content = "---\ndescription: Keep me\n---\n\n# Title\n";
     expect(ensureExplicitDescription(content, "demo")).toBe(content);
   });
+
+  it("repairs a frontmatter block broken by unquoted colons instead of burying it", () => {
+    const broken = [
+      "---",
+      "name: wordpress-plugin-engineering",
+      'description: Build or harden a plugin. Use for any work beyond a one-line fix: building features, audits. Trigger phrases: "audit plugin", "harden plugin".',
+      "version: 1.2.0",
+      "license: MIT",
+      "---",
+      "",
+      "# WordPress plugin engineering",
+      "",
+      "Body."
+    ].join("\n");
+
+    const repaired = ensureExplicitDescription(broken, "wordpress-plugin-engineering");
+    const { data, body } = parseFrontmatter(repaired);
+
+    expect(data.name).toBe("wordpress-plugin-engineering");
+    expect(data.description).toBe(
+      'Build or harden a plugin. Use for any work beyond a one-line fix: building features, audits. Trigger phrases: "audit plugin", "harden plugin".'
+    );
+    expect(data.version).toBe("1.2.0");
+    expect(data.license).toBe("MIT");
+    expect(body).toContain("# WordPress plugin engineering");
+    expect(listAssetCompatIssues("skills", repaired)).toEqual([]);
+    expect(repaired.match(/^---$/gm)).toHaveLength(2);
+  });
+
+  it("fills a missing description into a salvaged block from the real body heading", () => {
+    const broken = ["---", "name: demo", "description: Works: sometimes", "---", "", "# Demo Skill", "", "Body."].join(
+      "\n"
+    );
+    const repaired = ensureExplicitDescription(broken, "demo");
+    const { data } = parseFrontmatter(repaired);
+    expect(data.description).toBe("Works: sometimes");
+  });
+
+  it("salvages a block without description using the real body heading", () => {
+    const broken = ["---", "name: demo", "version: 1.0.0", "---", "", "# Demo Skill", "", "Body."].join("\n");
+    const repaired = ensureExplicitDescription(broken, "demo");
+    const { data } = parseFrontmatter(repaired);
+    expect(data.description).toBe("Demo Skill");
+  });
+
+  it("does not salvage blocks with nested structure — keeps the prepend fallback", () => {
+    const broken = ["---", "metadata:", "  author: someone", "---", "", "# Demo"].join("\n");
+    const ensured = ensureExplicitDescription(broken, "demo");
+    expect(getExplicitDescription(ensured)).toBe("Demo");
+  });
 });
 
 describe("listAssetCompatIssues / assertWritableAssetContent", () => {

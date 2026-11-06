@@ -92,16 +92,82 @@ export function deriveDescription(content: string, fallbackName: string): { data
 }
 
 /**
+ * Recovers a `---` block whose YAML fails only because of unquoted scalar
+ * values (e.g. `description: … fix: building …` — a `: ` inside a plain
+ * scalar). Each top-level `key: value` line is parsed on its own; values that
+ * don't parse are kept as raw strings, so the writer re-quotes them. Nested
+ * structure (indented lines, block scalars) means we cannot tell value from
+ * markup — bail instead of guessing.
+ */
+function salvageFrontmatterBlock(content: string): { data: FrontmatterData; body: string } | null {
+  const lines = content.split("\n");
+  if (lines[0]?.trim() !== FENCE) {
+    return null;
+  }
+  const closingIndex = lines.findIndex((line, index) => index > 0 && line.trim() === FENCE);
+  if (closingIndex === -1) {
+    return null;
+  }
+
+  const data: FrontmatterData = {};
+  for (const line of lines.slice(1, closingIndex)) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0 || trimmed.startsWith("#")) {
+      continue;
+    }
+    if (/^\s/.test(line)) {
+      return null; // indented content: nested map, list or block scalar
+    }
+    const match = /^([A-Za-z0-9_-]+)\s*:\s*(.*)$/.exec(line);
+    if (!match) {
+      return null;
+    }
+    const [, key, rawValue] = match;
+    if (rawValue === "") {
+      data[key] = null;
+      continue;
+    }
+    try {
+      const value = parseYaml(rawValue);
+      // `Works: sometimes` parses as a nested map, but the author meant a plain
+      // scalar — only `{...}` flow maps are real objects here.
+      data[key] = isPlainObject(value) && !rawValue.startsWith("{") ? rawValue : (value ?? rawValue);
+    } catch {
+      data[key] = rawValue;
+    }
+  }
+
+  if (Object.keys(data).length === 0) {
+    return null;
+  }
+  const body = lines
+    .slice(closingIndex + 1)
+    .join("\n")
+    .replace(/^\n+/, "");
+  return { data, body };
+}
+
+function explicitDescription(data: FrontmatterData): string | null {
+  return typeof data.description === "string" && data.description.trim().length > 0 ? data.description.trim() : null;
+}
+
+/**
  * Ensure skill markdown has an explicit non-empty frontmatter `description`.
- * Uses the first heading when present, otherwise `fallbackName`.
+ * Uses the first heading when present, otherwise `fallbackName`. A frontmatter
+ * block that fails to parse is repaired in place (unquoted values get quoted)
+ * rather than buried under a second block.
  */
 export function ensureExplicitDescription(content: string, fallbackName: string): string {
   const { data, body, description } = deriveDescription(content, fallbackName);
-  const explicit =
-    typeof data.description === "string" && data.description.trim().length > 0 ? data.description.trim() : null;
 
-  if (explicit) {
+  if (explicitDescription(data)) {
     return content;
+  }
+
+  const salvaged = salvageFrontmatterBlock(content);
+  if (salvaged) {
+    const repairedDescription = explicitDescription(salvaged.data) ?? extractHeading(salvaged.body, fallbackName);
+    return stringifyFrontmatter({ ...salvaged.data, description: repairedDescription }, salvaged.body);
   }
 
   return stringifyFrontmatter({ ...data, description }, body);
