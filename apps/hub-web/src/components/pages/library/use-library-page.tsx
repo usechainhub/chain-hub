@@ -31,6 +31,7 @@ import { useLibraryAssetMutations } from './use-library-asset-mutations';
 import { useLibraryCreateFlow } from './use-library-create-flow';
 import { useLibraryInstallFlow } from './use-library-install-flow';
 import { useUnsavedChangesGuard } from './use-unsaved-changes-guard';
+import { useLibraryViewState } from './use-library-view-state';
 
 /**
  * All Library page orchestration: selection and deep-link state, the library queries,
@@ -38,26 +39,48 @@ import { useUnsavedChangesGuard } from './use-unsaved-changes-guard';
  */
 export function useLibraryPage() {
   const queryClient = useQueryClient();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [selected, setSelected] = useState<{ kind: AssetKind; name: string } | null>(null);
-  const [masterView, setMasterView] = useState<'assets' | 'files'>('assets');
-  const [activeFile, setActiveFile] = useState<string>('SKILL.md');
-  const [removeOpen, setRemoveOpen] = useState(false);
-  const [discoverOpen, setDiscoverOpen] = useState(false);
-  const [forkOpen, setForkOpen] = useState(false);
-  const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterKind, setFilterKind] = useState<FilterKind>(() => parseKindParam(searchParams.get('kind')));
-  const [ownership, setOwnership] = useState<OwnershipFilter>(() =>
-    parseOwnershipParam(searchParams.get('ownership'))
-  );
-  const [editorContent, setEditorContent] = useState('');
-  const [previewFilePath, setPreviewFilePath] = useState<string | null>(null);
-  const [autoAuditAsset, setAutoAuditAsset] = useState<string | null>(null);
-  const [updateResults, setUpdateResults] = useState<SkillBatchItemResult[] | null>(null);
-  const [relinkTarget, setRelinkTarget] = useState<string | null>(null);
-  const [analyzeOpen, setAnalyzeOpen] = useState(false);
-  const [view, setView] = useState<'assets' | 'review'>('assets');
+  const {
+    searchParams,
+    setSearchParams,
+    selected,
+    setSelected,
+    masterView,
+    setMasterView,
+    activeFile,
+    setActiveFile,
+    removeOpen,
+    setRemoveOpen,
+    discoverOpen,
+    setDiscoverOpen,
+    forkOpen,
+    setForkOpen,
+    importProgress,
+    setImportProgress,
+    searchQuery,
+    setSearchQuery,
+    filterKind,
+    setFilterKind,
+    ownership,
+    setOwnership,
+    editorContent,
+    setEditorContent,
+    previewFilePath,
+    setPreviewFilePath,
+    autoAuditAsset,
+    setAutoAuditAsset,
+    updateResults,
+    setUpdateResults,
+    relinkTarget,
+    setRelinkTarget,
+    analyzeOpen,
+    setAnalyzeOpen,
+    view,
+    setView,
+    listAtTop,
+    setListAtTop,
+    listAtBottom,
+    setListAtBottom
+  } = useLibraryViewState();
   const analysis = useLibraryAnalysis();
 
   const createFlow = useLibraryCreateFlow({
@@ -433,8 +456,6 @@ export function useLibraryPage() {
   const hasAgentsDrift = (agentsDrift?.missingCount ?? 0) > 0;
 
   const listScrollRef = useRef<HTMLDivElement>(null);
-  const [listAtTop, setListAtTop] = useState(true);
-  const [listAtBottom, setListAtBottom] = useState(true);
 
   useEffect(() => {
     const el = listScrollRef.current;
