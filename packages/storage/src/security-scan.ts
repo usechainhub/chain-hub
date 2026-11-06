@@ -61,8 +61,10 @@ const SENSITIVE_FILENAME_RE =
 const NETWORK_RE =
   /\b(?:curl|wget|fetch\s*\(|requests\.(?:get|post|put)|urllib|axios|http\.request|Invoke-WebRequest|\biwr\b|nc\s|ncat\s|socat|scp\s|sftp|lftp|git\s+(?:clone|ls-remote)|nslookup|dig\s|ssh\s)/i;
 
+// `Login Data`/`Local State` need path or quote context — as plain words they
+// match ordinary English ("the login data", "drop the local state").
 const SENSITIVE_RE =
-  /\.ssh[/\\]|id_rsa|id_ed25519|id_ecdsa|\.aws[/\\]|\.config[/\\]gcloud|\.gnupg|keychain|find-(?:generic|internet)-password|(?<!process)\.env\b|secrets?\.json|cookies?\.sqlite|Login Data|Local State|wallet\.dat|\.npmrc|\.netrc|_netrc|\.docker[/\\]config\.json|kube[/\\-]?config|credentials?\.(?:json|csv|txt|ya?ml|db|store|xml)\b|private[_-]?key|\.pem\b/i;
+  /\.ssh[/\\]|id_rsa|id_ed25519|id_ecdsa|\.aws[/\\]|\.config[/\\]gcloud|\.gnupg|keychain|find-(?:generic|internet)-password|(?<!process)\.env\b|secrets?\.json|cookies?\.sqlite|(?<=[/\\"'])Login Data|(?<=[/\\"'])Local State|wallet\.dat|\.npmrc|\.netrc|_netrc|\.docker[/\\]config\.json|kube[/\\-]?config|credentials?\.(?:json|csv|txt|ya?ml|db|store|xml)\b|private[_-]?key|\.pem\b/i;
 
 /**
  * Instruction-shaped rules cap at medium inside prose: documentation describes
@@ -238,7 +240,7 @@ const RULES: ScanRule[] = [
       /~?\/?\.ssh[/\\]|id_rsa|id_ed25519|id_ecdsa|id_dsa/,
       /~?\/?\.aws[/\\](?:credentials|config)|~?\/?\.config[/\\](?:gcloud|gh)|~?\/?\.gnupg|keychain|\bsecurity\s+find-(?:generic|internet)-password/,
       /\b(?:cat|less|more|head|tail|source|base64|xxd|openssl|gpg|print|dump|read|copy|cp)\b\s+["'`]?[^\n]{0,80}?(?:\.env\b|\.ssh|id_rsa|credentials?|secrets?|\.pem|\.key\b|cookies?|wallet|keychain|Login Data|\.netrc|\.npmrc|\.pypirc|\.pgpass)/i,
-      /cookies?\.sqlite|Login Data|Local State|(?:Application Support|AppData)[/\\](?:Google[/\\]Chrome|Chromium|Firefox|Brave|Edge)/i,
+      /cookies?\.sqlite|(?<=[/\\"'])Login Data|(?<=[/\\"'])Local State|(?:Application Support|AppData)[/\\](?:Google[/\\]Chrome|Chromium|Firefox|Brave|Edge)/i,
       /wallet\.dat|\.bitcoin[/\\]|\.ethereum[/\\]|\bmetamask\b|\b(?:phantom|exodus)[\s_-]?(?:wallet|vault|extension|snap|keyring)\b/i,
       /~?\/?\.(?:docker[/\\]config\.json|kube[/\\]?config|netrc|_netrc|npmrc|pypirc|pgpass|git-credentials)\b/
     ]
@@ -259,8 +261,9 @@ const RULES: ScanRule[] = [
     title: "Hides instructions in comments or markup",
     detail: "Instructions inside comments are invisible when rendered but still reach the agent.",
     patterns: [
-      /<!--[^>]{0,400}?\b(?:ignore|execute|run\b|curl|wget|fetch|secret|instruction|delete|exfiltrate|password|token|api[\s_-]?key)[^>]*?-->/i,
-      /<!--[^>]{0,400}?\b(?:ignore|execute|curl|fetch|secret|exfiltrate|token|api[\s_-]?key)[^>]*?-->/i,
+      // Keywords stay covert/credential-shaped: generic words like `run`,
+      // `token` or `delete` fire on ordinary template comments.
+      /<!--[^>]{0,400}?\b(?:ignore|disregard|override|exfiltrate|steal|password|api[\s_-]?key|credentials?|secrets?|sudo|curl|wget|fetch\s*\(|\.env\b|\.ssh|private[\s_-]?key|(?:api|access|auth|bearer|session|csrf)[\s_-]?tokens?)\b[^>]*?-->/i,
       /\/\*[^*]{0,400}?\b(?:exfiltrate|steal|api[\s_-]?key|password)[^*]{0,200}?\*\//i
     ]
   },
@@ -312,10 +315,60 @@ const RULES: ScanRule[] = [
     title: "Uses plain HTTP",
     detail: "Unencrypted endpoints can be intercepted or rewritten.",
     patterns: [
-      /\bhttp:\/\/(?!localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])[^\s"')\]]+/
+      // `http://www.w3.org/...` is an XML/SVG namespace identifier, not a fetched endpoint.
+      /\bhttp:\/\/(?!(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?:[/:]|$)|www\.w3\.org(?:[/\s"')]|$))[^\s"')\]]+/
     ]
   }
 ];
+
+/**
+ * Instruction-language rules also match prose that *describes* an attack: docs
+ * teaching an agent to resist injection quote the payload verbatim (`e.g.
+ * "ignore previous instructions"`) or forbid the covert action ("don't
+ * silently delete"). Both read as attacks to a plain pattern. Only the
+ * prompt-injection rule is built from instruction language, so suppression is
+ * scoped to it — mechanical payload rules never get suppressed.
+ */
+const SUPPRESSIBLE_RULES = new Set(["prompt-injection"]);
+
+const QUOTE_BEFORE_RE = /["'`“”‘’«»]\s*$/;
+const EXAMPLE_OR_DEFENSE_RE =
+  /\b(?:e\.g\.?|for\s+example|for\s+instance|such\s+as|examples?|phrases?|directives?|markers?|untrusted|malicious|suspicious|injection|manipulat|like|including|contains?|looks?\s+like)\b/i;
+const NEGATION_RE =
+  /\b(?:don't|do\s+not|does\s+not|did\s+not|never|must\s+not|mustn't|should\s+not|shouldn't|shall\s+not|won't|will\s+not|cannot|can't|can\s+not|avoid(?:ing|ed)?|refrain(?:ing)?|not\s+allowed|forbidden|prohibited)\b/i;
+// Abbreviation dots (e.g., i.e.) are not sentence boundaries for clause detection.
+const ABBREVIATION_DOT_RE = /\b(?:e\.g|i\.e|etc|vs|approx|ca)\./gi;
+
+/** Same-line text preceding `index`, cut at the last sentence boundary. */
+function precedingClause(content: string, index: number): string {
+  const lineStart = content.lastIndexOf("\n", index - 1) + 1;
+  const prefix = content.slice(lineStart, index).replace(ABBREVIATION_DOT_RE, "   ");
+  const boundary = Math.max(
+    prefix.lastIndexOf("."),
+    prefix.lastIndexOf(";"),
+    prefix.lastIndexOf("!"),
+    prefix.lastIndexOf("?"),
+    prefix.lastIndexOf(":")
+  );
+  return prefix.slice(boundary + 1);
+}
+
+/** A quoted attack cited as an example or flagged as untrusted — documentation, not a payload. */
+function isQuotedExample(content: string, index: number): boolean {
+  const lineStart = content.lastIndexOf("\n", index - 1) + 1;
+  const prefix = content.slice(lineStart, index);
+  return QUOTE_BEFORE_RE.test(prefix) && EXAMPLE_OR_DEFENSE_RE.test(prefix);
+}
+
+/** "don't silently delete" forbids the action the pattern reads as covert. */
+function isNegatedAction(content: string, index: number): boolean {
+  return NEGATION_RE.test(precedingClause(content, index));
+}
+
+function isSuppressedMatch(rule: ScanRule, file: SecurityScanFile, matchIndex: number): boolean {
+  if (!SUPPRESSIBLE_RULES.has(rule.id)) return false;
+  return isQuotedExample(file.content, matchIndex) || isNegatedAction(file.content, matchIndex);
+}
 
 function fileKindOf(filePath: string, content: string): FileKind {
   const ext = path.extname(filePath).toLowerCase();
@@ -338,8 +391,18 @@ function applyRules(file: SecurityScanFile): SecurityScanFinding[] {
       continue;
     }
     for (const pattern of rule.patterns) {
-      const match = pattern.exec(file.content);
-      if (match) {
+      // Iterate all matches so a suppressed first match doesn't hide a real
+      // payload later in the file.
+      const global = pattern.global ? pattern : new RegExp(pattern.source, `${pattern.flags}g`);
+      let match: RegExpExecArray | null;
+      while ((match = global.exec(file.content)) !== null) {
+        if (match[0].length === 0) {
+          global.lastIndex++;
+          continue;
+        }
+        if (isSuppressedMatch(rule, file, match.index)) {
+          continue;
+        }
         findings.push({
           ruleId: rule.id,
           severity: severityFor(rule, file, kind, match.index),
