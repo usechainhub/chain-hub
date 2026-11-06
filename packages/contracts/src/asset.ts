@@ -194,7 +194,9 @@ export function isUnlinkedSkill(entry: SkillLockEntryValue | null | undefined): 
 
 /** True when the last update check found the upstream HEAD ahead of the locked copy. */
 export function hasSkillUpdate(entry: SkillLockEntryValue | null | undefined): boolean {
-  return Boolean(entry?.latestSha && entry.latestSha !== entry.commitSha);
+  // Unlinked skills keep latestSha as provenance but are no longer tracked —
+  // without the ownership check a stale latestSha flags an update forever.
+  return isUpstreamOwnedSkill(entry) && Boolean(entry?.latestSha && entry.latestSha !== entry.commitSha);
 }
 
 /**
