@@ -1,18 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { analysisApi, libraryApi, overviewApi } from '@/lib/api';
 import { hasSkillUpdate, isUpstreamOwnedSkill, resolveSkillUpstreamBrowseUrl } from '@/lib/skill-ownership';
 import type {
   AnalysisItem,
-  AssetKind,
   AssetRecord,
   DiscoveredAsset,
-  FilterKind,
-  OwnershipFilter,
-  SkillBatchItemResult
+  OwnershipFilter
 } from '@/types';
 import type { AnalysisEntry } from './analyze-assets';
 import {
