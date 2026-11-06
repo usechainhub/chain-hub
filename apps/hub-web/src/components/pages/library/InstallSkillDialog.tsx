@@ -1,7 +1,7 @@
 import type { RefObject } from 'react';
 import { FolderOpen, Search, ShieldAlert } from 'lucide-react';
 
-import type { SecurityScanFinding, SecurityScanReport, SecurityScanSeverity } from '@chain-hub/contracts';
+import type { SecurityScanReport, SecurityScanSeverity } from '@chain-hub/contracts';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
