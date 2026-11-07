@@ -30,8 +30,6 @@ Exact versions live in each `package.json` — do not trust versions quoted in d
 
 ```
 apps/hub-web/          React dashboard — consumes contracts + HTTP API only
-apps/docs/             Documentation site (Vite + MDX)
-apps/marketing-site/   Marketing site (under development, inline coming-soon page)
 packages/contracts/    @chain-hub/contracts — Zod schemas + types, no deps
 packages/storage/      @chain-hub/storage — hub folder I/O + editor adapters
 packages/domain/       @chain-hub/domain — use-cases, wraps storage, AI providers
@@ -51,8 +49,6 @@ bun install
 bun run build            # all packages, dependency order
 bun run dev              # everything: server + hub-web + docs + marketing + packages (watch); frees dev ports first and prints the URLs
 bun run dev:hub          # hub only: server + hub-web + packages (watch)
-bun run dev:docs         # docs site
-bun run dev:marketing    # marketing site
 bun run hub              # build + start dashboard (port 2342)
 bun run lint             # ESLint 9 flat config, whole workspace
 bun run typecheck
@@ -126,7 +122,7 @@ Requirements are ambiguous, package ownership is unclear, code contradicts this 
 ## Learned User Preferences
 
 - Hub UI should feel premium, simple, sleek, and trustworthy—not a dense console/terminal aesthetic and not marketing-card or AI-slop layouts (oversized radii, sparse stadium cards, eyebrow-on-everything).
-- Signaal is the chosen visual direction (shared with apps/marketing-site): light default (paper `#f2f0eb` page, `#fbfaf8` surfaces, ink `#1c1d1f` text, accent `#d9482b`) plus switchable Signaal dark (ink `#1c1d1f` canvas, `#242629` panels, paper text, accent-bright `#ff8a5b`); orange as the sole brand accent in both themes (One Signal—not for status dots or hover/selection fills); ~10–12px radius; Geist + Geist Mono; theme switch via header, Settings → Appearance, and ⌘K.
+- Signaal is the chosen visual direction: light default (paper `#f2f0eb` page, `#fbfaf8` surfaces, ink `#1c1d1f` text, accent `#d9482b`) plus switchable Signaal dark (ink `#1c1d1f` canvas, `#242629` panels, paper text, accent-bright `#ff8a5b`); orange as the sole brand accent in both themes (One Signal—not for status dots or hover/selection fills); ~10–12px radius; Geist + Geist Mono; theme switch via header, Settings → Appearance, and ⌘K.
 - Standardize hub-web layouts by surface type (Direction A): dashboard Overview as default landing (`/`); checklist for Setup (under Settings, not primary nav) and Integrations; workspace master–detail for Library and Catalog (browse may use compact asset cards). Primary nav: Overview → Library → Catalog → Learnings → Integrations → Settings. Library chrome: Create + Discover (and skills Install/Update) in the Assets title row; search below title; search + ownership filters side-by-side from `sm` when browsing (wide master), stacked when the detail panel narrows the master column.
 - Prefer rebuilding UI against existing design-system components and tokens; flag gaps and make the smallest addition rather than inventing one-off primitives.
 - Often writes requests in Dutch; treat Dutch instructions as first-class and follow them directly.

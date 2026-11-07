@@ -11,8 +11,6 @@ import { reclaimPort } from "../packages/server/src/dev-port.js";
 // Ports mirror the vite configs (apps/*/vite.config.ts) and dev-server.ts.
 const SURFACES: Array<{ name: string; url: string; port: number }> = [
   { name: "Hub (dashboard)", url: "http://localhost:4320", port: 4320 },
-  { name: "Marketing site", url: "http://localhost:4322", port: 4322 },
-  { name: "Docs", url: "http://localhost:4323/docs/", port: 4323 },
   { name: "API server", url: "http://127.0.0.1:2342", port: 2342 }
 ];
 
