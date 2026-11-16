@@ -9,9 +9,11 @@ import { spawn } from "node:child_process";
 import { reclaimPort } from "../packages/server/src/dev-port.js";
 
 // Ports mirror the vite configs (apps/*/vite.config.ts) and dev-server.ts.
+const webPort = Number(process.env.CHAIN_HUB_WEB_PORT ?? 4320);
+const apiPort = Number(process.env.CHAIN_HUB_API_PORT ?? 2342);
 const SURFACES: Array<{ name: string; url: string; port: number }> = [
-  { name: "Hub (dashboard)", url: "http://localhost:4320", port: 4320 },
-  { name: "API server", url: "http://127.0.0.1:2342", port: 2342 }
+  { name: "Hub (dashboard)", url: `http://localhost:${webPort}`, port: webPort },
+  { name: "API server", url: `http://127.0.0.1:${apiPort}`, port: apiPort }
 ];
 
 for (const { port } of SURFACES) {

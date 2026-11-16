@@ -47,3 +47,4 @@ apps/hub-web/test-results/
 
 # Private notes clone (martijnbokma/chain-hub-notes, optional)
 notes/
+.wt-meta.json

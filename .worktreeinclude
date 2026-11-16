@@ -1,0 +1,5 @@
+# Gitignored files copied into every new worktree (wt, Claude Code, Cursor, Devin)
+.env.local
+.env.staging
+.env.production
+.env.deploy

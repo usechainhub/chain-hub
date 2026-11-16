@@ -4,7 +4,7 @@ import path from "node:path";
 import { isAddressInUseError, reclaimPort } from "./dev-port.js";
 import { startServer } from "./index.js";
 
-const PORT = 2342;
+const PORT = Number(process.env.CHAIN_HUB_API_PORT ?? 2342);
 const MAX_BIND_ATTEMPTS = 3;
 
 function resolveDevStaticRoot(): string | undefined {

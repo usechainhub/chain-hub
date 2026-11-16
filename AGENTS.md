@@ -145,3 +145,12 @@ Requirements are ambiguous, package ownership is unclear, code contradicts this 
 - Learnings have a hub-web page at `/learnings` (primary nav) backed by `/api/learnings`; capture/reflect also via CLI.
 - Skill update checks: `check-updates` probes git remotes (`git ls-remote` HEAD) and persists `latestSha`/`lastCheckedAt` in `skills-lock.json`; `hasSkillUpdate(entry)` derives the flag. Probes are cached for `SKILL_UPDATE_CHECK_TTL_MS` (15 min, `force` bypasses). `chain hub` runs the check in the background at start; Library badges/Update-button read it on the skills tab.
 - Dependencies are updated by Dependabot (`bun` ecosystem, weekly Monday PRs on `develop`, grouped dev-deps + production minor/patch, 14/7/3-day cooldown). Deliberately no bun `catalog:` yet: Dependabot skips catalog deps (dependabot-core#16544) and `npm publish` of `packages/cli` can't rewrite the protocol. Revisit when that PR lands.
+
+## Worktree Protocol (agents)
+
+- Never edit the main checkout. Before the first write, check `git worktree list` and reuse the worktree for this feature - a worktree lives for the whole feature, across prompts and sessions, not per prompt.
+- Create with `wt new <slug>` (global `wt` on PATH, config in `.wt.json`): makes `../chain-hub-worktrees/<slug>` on branch `wt/<slug>`, copies `.worktreeinclude` env files, injects `CHAIN_HUB_WEB_PORT`/`CHAIN_HUB_API_PORT` (web 4801-5000, api = web+1) into `.env.local`, and installs deps. `wt/<slug>` is the sanctioned exception to the "no feature branches" rule: merge back with `wt merge <slug>` (develop into the branch first, then into develop - conflicts resolve in the branch), then `wt rm <slug> --branch`.
+- `wt sync` regularly on long-lived worktrees; `wt ls` shows every worktree's branch, ports and URL.
+- `bun run dev` reclaims the ports it reads from env: a worktree always runs on its injected pair, the main checkout on 4320/2342. Without env vars a worktree dev run would kill the main dev servers - the injected `.env.local` prevents that.
+- Sparse checkouts (`--only`) are not recommended here: Turborepo needs the full workspace graph.
+- End every response that worked in a worktree with: `Worktree: <slug> . Branch: wt/<slug> . Site: http://<slug>.localhost:<port>`

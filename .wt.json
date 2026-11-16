@@ -1,0 +1,26 @@
+{
+  "worktreesDir": "../chain-hub-worktrees",
+  "branch": "wt/{slug}",
+  "baseBranch": "develop",
+  "envFiles": [
+    ".env.local",
+    ".env.staging",
+    ".env.production",
+    ".env.deploy"
+  ],
+  "portEnv": {
+    "file": ".env.local",
+    "key": "CHAIN_HUB_WEB_PORT",
+    "siblings": {
+      "CHAIN_HUB_API_PORT": 1
+    }
+  },
+  "setup": "bun install",
+  "devCommand": "bun run dev",
+  "urls": {
+    "site": "http://{slug}.localhost:{port}"
+  },
+  "basePort": 4801,
+  "portRange": 200,
+  "portStrategy": "hash"
+}
